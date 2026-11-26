@@ -2,6 +2,7 @@ package io.github.tomuius.cartilou.data.supabase
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import io.github.tomuius.cartilou.data.tcgdex.Card
 import io.github.tomuius.cartilou.data.tcgdex.CardVariants
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
@@ -9,6 +10,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +61,16 @@ internal data class VersionQuantityRow(
     @SerialName("quantite") val quantity: Int,
 )
 
+/** Ce qu'on lit pour toute la collection : tout sauf l'utilisateur et les dates. */
+@Serializable
+internal data class CollectionRow(
+    @SerialName("carte_id") val cardId: String,
+    val version: String,
+    @SerialName("quantite") val quantity: Int,
+    @SerialName("extension_id") val setId: String,
+    @SerialName("serie_id") val serieId: String,
+)
+
 /** Une ligne complète, pour l'ajout ou la mise à jour. */
 @Serializable
 internal data class OwnedCardRow(
@@ -65,6 +80,15 @@ internal data class OwnedCardRow(
     @SerialName("quantite") val quantity: Int,
     @SerialName("extension_id") val setId: String,
     @SerialName("serie_id") val serieId: String,
+)
+
+/** Une version d'une carte possédée, telle que gardée en mémoire pour Ma collection. */
+data class OwnedCard(
+    val cardId: String,
+    val version: CardVersion,
+    val quantity: Int,
+    val setId: String,
+    val serieId: String,
 )
 
 /**
@@ -91,6 +115,57 @@ object OwnedCards {
 
     /** Série de chaque extension déjà rencontrée (lue chez TCGdex une seule fois). */
     private val serieBySet = ConcurrentHashMap<String, String>()
+
+    /**
+     * Supabase renvoie au plus 1 000 lignes par requête (réglage par défaut
+     * des projets, d'après sa documentation) : la collection est lue par
+     * paquets de cette taille.
+     */
+    private const val PAGE_SIZE = 1000L
+
+    private val _collection = MutableStateFlow<List<OwnedCard>?>(null)
+
+    /**
+     * Toute la collection, gardée en mémoire pour l'onglet Ma collection :
+     * null tant qu'elle n'est pas lue (ou après une déconnexion). Chaque
+     * enregistrement réussi la met à jour : Ma collection reste juste sans
+     * relire Supabase.
+     */
+    val collection: StateFlow<List<OwnedCard>?> = _collection.asStateFlow()
+
+    /** Lit toute la collection dans Supabase (par paquets de [PAGE_SIZE] lignes). */
+    suspend fun loadCollection() {
+        withFrenchErrors {
+            val userId = requireUserId()
+            val all = mutableListOf<OwnedCard>()
+            var from = 0L
+            while (true) {
+                val page = table.select(
+                    Columns.list("carte_id", "version", "quantite", "extension_id", "serie_id"),
+                ) {
+                    filter { eq("utilisateur_id", userId) }
+                    // Un ordre fixe, pour que les paquets se suivent sans trou ni doublon.
+                    order("carte_id", Order.ASCENDING)
+                    order("version", Order.ASCENDING)
+                    // Lignes « from » à « from + 999 », bornes comprises.
+                    range(from until from + PAGE_SIZE)
+                }.decodeList<CollectionRow>()
+                page.mapNotNullTo(all) { row ->
+                    CardVersion.fromDb(row.version)?.let { version ->
+                        OwnedCard(row.cardId, version, row.quantity, row.setId, row.serieId)
+                    }
+                }
+                if (page.size < PAGE_SIZE) break // dernier paquet
+                from += PAGE_SIZE
+            }
+            _collection.value = all
+        }
+    }
+
+    /** Oublie la collection gardée en mémoire (à la déconnexion). */
+    fun forgetCollection() {
+        _collection.value = null
+    }
 
     /** Le nombre d'exemplaires possédés de chaque version d'une carte (versions absentes = 0). */
     suspend fun quantities(cardId: String): Map<CardVersion, Int> = withFrenchErrors {
@@ -121,14 +196,16 @@ object OwnedCards {
                         eq("version", version.dbValue)
                     }
                 }
+                updateCollection(card.id, version, newLine = null)
             } else {
+                val serieId = serieIdOf(card.set.id)
                 val row = OwnedCardRow(
                     userId = userId,
                     cardId = card.id,
                     version = version.dbValue,
                     quantity = quantity,
                     setId = card.set.id,
-                    serieId = serieIdOf(card.set.id),
+                    serieId = serieId,
                 )
                 table.upsert(row) {
                     // Deux lignes sont « la même » si ces trois colonnes sont égales (la clé de la table).
@@ -136,7 +213,20 @@ object OwnedCards {
                     // Colonnes absentes (dates) : valeur par défaut de la table, pas « vide ».
                     defaultToNull = false
                 }
+                updateCollection(card.id, version, OwnedCard(card.id, version, quantity, card.set.id, serieId))
             }
+        }
+    }
+
+    /**
+     * Reporte un enregistrement réussi dans la collection gardée en mémoire
+     * (si elle a été lue) : remplace la ligne de cette carte et version, ou
+     * la retire si [newLine] est null.
+     */
+    private fun updateCollection(cardId: String, version: CardVersion, newLine: OwnedCard?) {
+        _collection.update { list ->
+            list?.filterNot { it.cardId == cardId && it.version == version }
+                ?.let { rest -> if (newLine != null) rest + newLine else rest }
         }
     }
 

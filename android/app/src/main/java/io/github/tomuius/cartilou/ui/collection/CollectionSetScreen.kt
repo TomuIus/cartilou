@@ -1,0 +1,148 @@
+package io.github.tomuius.cartilou.ui.collection
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.tomuius.cartilou.data.supabase.OwnedCards
+import io.github.tomuius.cartilou.data.tcgdex.CardBrief
+import io.github.tomuius.cartilou.data.tcgdex.CardSet
+import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
+import io.github.tomuius.cartilou.ui.common.CardTile
+import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.LoadStateContent
+import io.github.tomuius.cartilou.ui.common.LoadViewModel
+
+/** Le filtre de la grille. « Toutes » par défaut : la vue classeur. */
+enum class CardFilter(val label: String) {
+    All("Toutes"),
+    Owned("Possédées"),
+    Missing("Manquantes"),
+}
+
+/** Une extension et toutes ses cartes chez TCGdex. */
+class OwnedSetViewModel(setId: String) : LoadViewModel<CardSet>({ Tcgdex.set(setId) })
+
+/**
+ * Ma collection, troisième écran : les cartes d'une extension, en grille.
+ * Vos cartes sont en couleur avec le nombre d'exemplaires (« ×2 ») ; les
+ * manquantes, pâles. Le filtre en haut choisit lesquelles afficher.
+ * Un appui ouvre la fiche de la carte (où l'on ajoute ou retire).
+ */
+@Composable
+fun CollectionSetScreen(
+    setId: String,
+    setName: String,
+    onBack: () -> Unit,
+    onOpenCard: (CardBrief) -> Unit,
+) {
+    val viewModel = viewModel { OwnedSetViewModel(setId) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val owned = OwnedCards.collection.collectAsStateWithLifecycle().value
+    // rememberSaveable : le filtre choisi survit à une rotation de l'écran.
+    var filter by rememberSaveable { mutableStateOf(CardFilter.All) }
+
+    Scaffold(topBar = { CartilouTopBar(setName, onBack = onBack) }) { innerPadding ->
+        val modifier = Modifier.padding(innerPadding)
+        if (owned == null) {
+            CollectionUnavailable(modifier)
+        } else {
+            // Nombre d'exemplaires de chaque carte possédée de l'extension, toutes versions additionnées.
+            val copiesByCard = remember(owned, setId) {
+                owned.filter { it.setId == setId }
+                    .groupBy { it.cardId }
+                    .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
+            }
+            LoadStateContent(state, onRetry = viewModel::reload, modifier = modifier) { set ->
+                val shown = when (filter) {
+                    CardFilter.All -> set.cards
+                    CardFilter.Owned -> set.cards.filter { it.id in copiesByCard }
+                    CardFilter.Missing -> set.cards.filter { it.id !in copiesByCard }
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 104.dp),
+                    contentPadding = PaddingValues(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    // En-tête sur toute la largeur : avancement et filtre.
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = progressText(copiesByCard.size, set.cardCount?.total ?: set.cards.size),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            FilterRow(filter, onSelect = { filter = it })
+                        }
+                    }
+                    if (shown.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = when (filter) {
+                                    CardFilter.Missing -> "Aucune carte manquante : extension complète !"
+                                    else -> "Aucune carte à afficher."
+                                },
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 24.dp),
+                            )
+                        }
+                    }
+                    items(shown, key = { it.id }) { card ->
+                        val copies = copiesByCard[card.id]
+                        CardTile(
+                            card = card,
+                            onClick = { onOpenCard(card) },
+                            badge = copies?.let { "×$it" },
+                            // Pâle seulement dans « Toutes » : dans « Manquantes », elles le sont toutes.
+                            dimmed = copies == null && filter == CardFilter.All,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Les trois boutons du filtre, collés (« boutons segmentés » de Material 3).
+ * @OptIn : ces boutons sont peut-être encore marqués « expérimentaux » dans
+ * cette version de la bibliothèque ; l'annotation l'accepte explicitement.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterRow(selected: CardFilter, onSelect: (CardFilter) -> Unit) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        CardFilter.entries.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = option == selected,
+                onClick = { onSelect(option) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = CardFilter.entries.size),
+            ) {
+                Text(option.label)
+            }
+        }
+    }
+}

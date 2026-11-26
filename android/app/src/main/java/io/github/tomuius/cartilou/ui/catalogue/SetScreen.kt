@@ -1,10 +1,7 @@
 package io.github.tomuius.cartilou.ui.catalogue
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -15,16 +12,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.tcgdex.CardBrief
 import io.github.tomuius.cartilou.data.tcgdex.CardSet
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.ui.common.CardImage
+import io.github.tomuius.cartilou.ui.common.CardTile
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
@@ -68,24 +63,6 @@ fun SetScreen(
                 }
             }
         }
-    }
-}
-
-/** Une carte de la grille : son image (petite qualité), puis son numéro et son nom. */
-@Composable
-private fun CardTile(card: CardBrief, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        CardImage(card.image, card.name, quality = "low", modifier = Modifier.fillMaxWidth())
-        Text(
-            text = "${card.localId} · ${card.name}",
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 

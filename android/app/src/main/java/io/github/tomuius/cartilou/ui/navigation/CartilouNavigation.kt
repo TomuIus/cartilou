@@ -32,6 +32,8 @@ import io.github.tomuius.cartilou.ui.catalogue.SerieScreen
 import io.github.tomuius.cartilou.ui.catalogue.SeriesScreen
 import io.github.tomuius.cartilou.ui.catalogue.SetScreen
 import io.github.tomuius.cartilou.ui.collection.CollectionScreen
+import io.github.tomuius.cartilou.ui.collection.CollectionSerieScreen
+import io.github.tomuius.cartilou.ui.collection.CollectionSetScreen
 import kotlinx.serialization.Serializable
 
 // Les « clés » de navigation : une par écran, avec ce dont l'écran a besoin.
@@ -55,6 +57,24 @@ data class CardRoute(val id: String, val name: String) : NavKey
 /** Racine de l'onglet Ma collection. */
 @Serializable
 data object CollectionRoute : NavKey
+
+// Les écrans de Ma collection ont leurs propres clés, même pour la fiche
+// d'une carte : une même carte peut ainsi être ouverte à la fois dans le
+// Catalogue et dans Ma collection sans que Navigation 3 confonde les deux
+// (chaque écran est repéré par sa clé ; deux clés identiques désigneraient
+// le même écran).
+
+/** Ma collection : une série. */
+@Serializable
+data class CollectionSerieRoute(val id: String, val name: String) : NavKey
+
+/** Ma collection : une extension. */
+@Serializable
+data class CollectionSetRoute(val id: String, val name: String) : NavKey
+
+/** Ma collection : la fiche d'une carte (même écran que dans le Catalogue). */
+@Serializable
+data class CollectionCardRoute(val id: String, val name: String) : NavKey
 
 /** Racine de l'onglet Compte. */
 @Serializable
@@ -200,7 +220,34 @@ fun CartilouNavigation() {
                     )
                 }
                 entry<CollectionRoute> {
-                    CollectionScreen(onSignIn = { tabs.select(Tab.Account) })
+                    CollectionScreen(
+                        onSignIn = { tabs.select(Tab.Account) },
+                        onOpenSerie = { serie -> tabs.open(CollectionSerieRoute(serie.id, serie.name)) },
+                    )
+                }
+                entry<CollectionSerieRoute> { route ->
+                    CollectionSerieScreen(
+                        serieId = route.id,
+                        serieName = route.name,
+                        onBack = { tabs.back() },
+                        onOpenSet = { set -> tabs.open(CollectionSetRoute(set.id, set.name)) },
+                    )
+                }
+                entry<CollectionSetRoute> { route ->
+                    CollectionSetScreen(
+                        setId = route.id,
+                        setName = route.name,
+                        onBack = { tabs.back() },
+                        onOpenCard = { card -> tabs.open(CollectionCardRoute(card.id, card.name)) },
+                    )
+                }
+                entry<CollectionCardRoute> { route ->
+                    CardScreen(
+                        cardId = route.id,
+                        cardName = route.name,
+                        onBack = { tabs.back() },
+                        onSignIn = { tabs.select(Tab.Account) },
+                    )
                 }
                 entry<AccountRoute> {
                     AccountScreen()

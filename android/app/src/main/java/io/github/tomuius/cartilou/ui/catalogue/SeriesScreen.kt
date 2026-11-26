@@ -2,7 +2,6 @@ package io.github.tomuius.cartilou.ui.catalogue
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
@@ -12,16 +11,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.tcgdex.SerieBrief
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.data.tcgdex.assetUrls
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
-import io.github.tomuius.cartilou.ui.common.FallbackImage
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
+import io.github.tomuius.cartilou.ui.common.SerieLogo
 
 /**
  * Séries masquées dans le catalogue. « tcgp » : TCG Pocket, le jeu de cartes
@@ -63,14 +60,4 @@ fun SeriesScreen(onOpenSerie: (SerieBrief) -> Unit) {
             }
         }
     }
-}
-
-/** Le logo d'une série, ou un espace vide de même taille s'il n'y en a pas. */
-@Composable
-private fun SerieLogo(logo: String?) {
-    FallbackImage(
-        urls = assetUrls(logo),
-        contentDescription = null, // purement décoratif : le nom est écrit à côté
-        modifier = Modifier.size(width = 72.dp, height = 40.dp),
-    )
 }
