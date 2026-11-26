@@ -36,8 +36,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.supabase.Account
-import io.github.tomuius.cartilou.data.supabase.AccountException
 import io.github.tomuius.cartilou.data.supabase.AccountState
+import io.github.tomuius.cartilou.data.supabase.DisplayableException
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
 import kotlinx.coroutines.launch
 
@@ -70,7 +70,7 @@ class AccountViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 action()
-            } catch (e: AccountException) {
+            } catch (e: DisplayableException) {
                 error = e.message
             } finally {
                 busy = false

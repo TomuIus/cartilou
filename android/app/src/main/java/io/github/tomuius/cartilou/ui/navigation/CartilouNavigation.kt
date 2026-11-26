@@ -196,6 +196,7 @@ fun CartilouNavigation() {
                         cardId = route.id,
                         cardName = route.name,
                         onBack = { tabs.back() },
+                        onSignIn = { tabs.select(Tab.Account) },
                     )
                 }
                 entry<CollectionRoute> {

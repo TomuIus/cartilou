@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.tcgdex.Card
-import io.github.tomuius.cartilou.data.tcgdex.CardVariants
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
 import io.github.tomuius.cartilou.ui.common.CardImage
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
@@ -32,12 +29,14 @@ import io.github.tomuius.cartilou.ui.common.LoadViewModel
 class CardViewModel(cardId: String) : LoadViewModel<Card>({ Tcgdex.card(cardId) })
 
 /**
- * Quatrième écran : la fiche d'une carte. Grande image, informations utiles à
- * la collection, et versions existantes. C'est ici que viendra plus tard
- * l'ajout à la collection.
+ * Quatrième écran : la fiche d'une carte. Grande image, nom, la partie
+ * « Ma collection » (voir OwnedVersions.kt), puis les informations utiles
+ * à la collection.
+ *
+ * [onSignIn] : ouvre l'onglet Compte (bouton affiché si l'on n'est pas connecté).
  */
 @Composable
-fun CardScreen(cardId: String, cardName: String, onBack: () -> Unit) {
+fun CardScreen(cardId: String, cardName: String, onBack: () -> Unit, onSignIn: () -> Unit) {
     val viewModel = viewModel { CardViewModel(cardId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -61,6 +60,13 @@ fun CardScreen(cardId: String, cardName: String, onBack: () -> Unit) {
                         .widthIn(max = 360.dp)
                         .fillMaxWidth(),
                 )
+                Text(
+                    text = card.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Juste sous le nom : c'est ce qu'on touche le plus souvent en saisissant.
+                OwnedVersionsSection(card, onSignIn = onSignIn)
                 CardDetails(card)
             }
         }
@@ -74,28 +80,11 @@ private fun CardDetails(card: Card) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(card.name, style = MaterialTheme.typography.headlineSmall)
         DetailRow("Numéro", cardNumber(card))
         DetailRow("Extension", card.set.name)
         DetailRow("Rareté", card.rarity)
         DetailRow("Catégorie", card.category)
         DetailRow("Illustrateur", card.illustrator)
-
-        // « Connues de TCGdex » : sa liste est parfois incomplète (des reverse
-        // manquent pour des cartes Noir & Blanc, XY, Soleil & Lune, constaté en test).
-        Text(
-            text = "Versions connues de TCGdex",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        val versions = variantLabels(card.variants)
-        if (versions.isEmpty()) {
-            Text("Non renseignées", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                versions.forEach { VersionBadge(it) }
-            }
-        }
     }
 }
 
@@ -113,34 +102,8 @@ private fun DetailRow(label: String, value: String?) {
     }
 }
 
-/** Une pastille avec le nom d'une version (par exemple « Reverse »). */
-@Composable
-private fun VersionBadge(label: String) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        )
-    }
-}
-
 /** Le numéro tel qu'imprimé sur la carte, par exemple « 136/189 » (ou « 136 » si le total est inconnu). */
 private fun cardNumber(card: Card): String {
     val official = card.set.cardCount?.official
     return if (official != null) "${card.localId}/$official" else card.localId
-}
-
-/** Les noms des versions existantes, dans un ordre fixe. */
-private fun variantLabels(variants: CardVariants?): List<String> {
-    if (variants == null) return emptyList()
-    return buildList {
-        if (variants.normal) add("Normale")
-        if (variants.reverse) add("Reverse")
-        if (variants.holo) add("Holo")
-        if (variants.firstEdition) add("1re édition")
-    }
 }
