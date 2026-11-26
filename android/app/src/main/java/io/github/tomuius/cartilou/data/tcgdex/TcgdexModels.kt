@@ -65,6 +65,39 @@ data class CardSet(
     val cards: List<CardBrief> = emptyList(),
 )
 
+/**
+ * Les versions (impressions) qui existent pour une carte, d'après TCGdex.
+ * « false » par défaut : une version non indiquée est considérée comme absente.
+ */
+@Serializable
+data class CardVariants(
+    /** Version normale, sans effet brillant. */
+    val normal: Boolean = false,
+    /** Reverse : le fond de la carte brille, pas l'illustration. */
+    val reverse: Boolean = false,
+    /** Holo : l'illustration brille. */
+    val holo: Boolean = false,
+    /** 1re édition : petit logo « Edition 1 » sur la carte (anciennes séries). */
+    val firstEdition: Boolean = false,
+)
+
+/** Une carte complète (fiche), avec les informations utiles à la collection. */
+@Serializable
+data class Card(
+    val id: String,
+    val localId: String,
+    val name: String,
+    val image: String? = null,
+    /** « Pokémon », « Dresseur » ou « Énergie ». */
+    val category: String? = null,
+    val illustrator: String? = null,
+    /** Rareté, en français (par exemple « Peu Commune »). */
+    val rarity: String? = null,
+    /** L'extension de la carte, avec son nombre de cartes. */
+    val set: CardSetBrief,
+    val variants: CardVariants? = null,
+)
+
 /** Une carte, telle qu'elle apparaît dans la liste d'une extension. */
 @Serializable
 data class CardBrief(

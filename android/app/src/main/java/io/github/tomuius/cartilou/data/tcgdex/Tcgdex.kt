@@ -53,6 +53,10 @@ object Tcgdex {
     /** Une extension et ses cartes (GET /v2/fr/sets/{id}). */
     suspend fun set(id: String): CardSet =
         client.get(API) { url { appendPathSegments("sets", id) } }.body()
+
+    /** Une carte complète (GET /v2/fr/cards/{id}, par exemple swsh3-136). */
+    suspend fun card(id: String): Card =
+        client.get(API) { url { appendPathSegments("cards", id) } }.body()
 }
 
 // Adresses des images. TCGdex donne une adresse de base, à compléter :

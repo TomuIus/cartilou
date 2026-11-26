@@ -1,19 +1,15 @@
 package io.github.tomuius.cartilou.ui.catalogue
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -21,8 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,9 +24,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.tcgdex.CardBrief
 import io.github.tomuius.cartilou.data.tcgdex.CardSet
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.data.tcgdex.cardImageUrls
+import io.github.tomuius.cartilou.ui.common.CardImage
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
-import io.github.tomuius.cartilou.ui.common.FallbackImage
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 import java.time.LocalDate
@@ -42,12 +35,14 @@ import java.util.Locale
 /** Charge une extension et la liste de ses cartes (dans l'ordre des numéros, tel que renvoyé par TCGdex). */
 class SetViewModel(setId: String) : LoadViewModel<CardSet>({ Tcgdex.set(setId) })
 
-/** Rapport largeur / hauteur des images de cartes TCGdex (245 × 337). */
-private const val CARD_RATIO = 245f / 337f
-
-/** Troisième écran : les cartes d'une extension, en grille. */
+/** Troisième écran : les cartes d'une extension, en grille. Un appui ouvre la fiche de la carte. */
 @Composable
-fun SetScreen(setId: String, setName: String, onBack: () -> Unit) {
+fun SetScreen(
+    setId: String,
+    setName: String,
+    onBack: () -> Unit,
+    onOpenCard: (CardBrief) -> Unit,
+) {
     val viewModel = viewModel { SetViewModel(setId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -69,60 +64,27 @@ fun SetScreen(setId: String, setName: String, onBack: () -> Unit) {
                     )
                 }
                 items(set.cards, key = { it.id }) { card ->
-                    CardTile(card)
+                    CardTile(card, onClick = { onOpenCard(card) })
                 }
             }
         }
     }
 }
 
-/** Une carte de la grille : son image, puis son numéro et son nom. */
+/** Une carte de la grille : son image (petite qualité), puis son numéro et son nom. */
 @Composable
-private fun CardTile(card: CardBrief) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        val imageModifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(CARD_RATIO)
-            .clip(RoundedCornerShape(6.dp))
-        if (card.image == null) {
-            // TCGdex ne donne aucune image pour cette carte.
-            MissingImage(card.name, reason = "pas d'image", modifier = imageModifier)
-        } else {
-            // TCGdex donne une image, mais elle peut ne pas se charger (ni en webp, ni en png).
-            FallbackImage(
-                urls = cardImageUrls(card.image),
-                contentDescription = card.name,
-                modifier = imageModifier,
-                onAllFailed = {
-                    MissingImage(card.name, reason = "image introuvable", modifier = Modifier.fillMaxSize())
-                },
-            )
-        }
+private fun CardTile(card: CardBrief, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        CardImage(card.image, card.name, quality = "low", modifier = Modifier.fillMaxWidth())
         Text(
             text = "${card.localId} · ${card.name}",
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
-        )
-    }
-}
-
-/**
- * Cadre gris à la place d'une image de carte, avec le nom et la raison
- * (« pas d'image » ou « image introuvable »), pour repérer ces cas en test.
- */
-@Composable
-private fun MissingImage(name: String, reason: String, modifier: Modifier) {
-    Box(
-        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "$name\n($reason)",
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(4.dp),
         )
     }
 }

@@ -7,6 +7,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import io.github.tomuius.cartilou.ui.catalogue.CardScreen
 import io.github.tomuius.cartilou.ui.catalogue.SerieScreen
 import io.github.tomuius.cartilou.ui.catalogue.SeriesScreen
 import io.github.tomuius.cartilou.ui.catalogue.SetScreen
@@ -27,6 +28,10 @@ data class SerieRoute(val id: String, val name: String) : NavKey
 /** Écran d'une extension (ses cartes). */
 @Serializable
 data class SetRoute(val id: String, val name: String) : NavKey
+
+/** Fiche d'une carte. */
+@Serializable
+data class CardRoute(val id: String, val name: String) : NavKey
 
 /**
  * La navigation de l'appli.
@@ -68,6 +73,14 @@ fun CartilouNavigation() {
                 SetScreen(
                     setId = route.id,
                     setName = route.name,
+                    onBack = { backStack.removeLastOrNull() },
+                    onOpenCard = { card -> backStack.add(CardRoute(card.id, card.name)) },
+                )
+            }
+            entry<CardRoute> { route ->
+                CardScreen(
+                    cardId = route.id,
+                    cardName = route.name,
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
