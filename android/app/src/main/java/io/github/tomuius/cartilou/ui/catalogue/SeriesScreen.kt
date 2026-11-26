@@ -52,7 +52,7 @@ fun SeriesScreen(onOpenSerie: (SerieBrief) -> Unit) {
                 items(series, key = { it.id }) { serie ->
                     ListItem(
                         headlineContent = { Text(serie.name) },
-                        leadingContent = { SerieLogo(serie.logo) },
+                        leadingContent = { SerieLogo(serie.logo, serie.name) },
                         modifier = Modifier.clickable { onOpenSerie(serie) },
                     )
                     HorizontalDivider()

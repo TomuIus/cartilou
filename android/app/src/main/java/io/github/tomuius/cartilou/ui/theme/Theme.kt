@@ -1,58 +1,92 @@
 package io.github.tomuius.cartilou.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+// Le thème de l'appli : les couleurs « ilou » (voir Color.kt) placées dans les
+// « rôles » de Material 3, exactement comme dans Canapilou :
+// - primary : l'accent (boutons, badge « ×2 », onglet choisi…) ;
+// - secondaryContainer : le fond teinté (pastilles, bouton « + », filtre choisi) ;
+// - background : le fond de l'écran ; surface et surfaceContainer… : cartes,
+//   barres du haut et du bas, listes ;
+// - onSurfaceVariant : le texte secondaire (gris).
+//
+// Les couleurs dynamiques d'Android 12+ (tirées du fond d'écran du
+// téléphone), activées par le modèle d'Android Studio, ne sont plus
+// utilisées : l'appli garde l'identité de la famille « ilou ».
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
+private val LightColors = lightColorScheme(
+    primary = LightAccent,
+    onPrimary = LightOnAccent,
+    primaryContainer = LightTint,
+    onPrimaryContainer = LightLogoStart,
+    secondary = LightLogoStart,
     onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    secondaryContainer = LightTint,
+    onSecondaryContainer = LightLogoStart,
+    tertiary = LightAccent,
+    onTertiary = LightOnAccent,
+    background = LightBackground,
+    onBackground = LightText,
+    surface = LightCard,
+    onSurface = LightText,
+    surfaceVariant = LightBackground,
+    onSurfaceVariant = LightSoftText,
+    surfaceContainerLowest = LightCard,
+    surfaceContainerLow = LightCard,
+    surfaceContainer = LightCard,
+    surfaceContainerHigh = LightCard,
+    surfaceContainerHighest = LightCard,
+    outline = LightBorder,
+    outlineVariant = LightBorder,
+    error = LightError,
+    onError = Color.White,
 )
 
+private val DarkColors = darkColorScheme(
+    primary = DarkAccent,
+    onPrimary = DarkOnAccent,
+    primaryContainer = DarkTint,
+    onPrimaryContainer = DarkLogoStart,
+    secondary = DarkLogoStart,
+    onSecondary = DarkOnAccent,
+    secondaryContainer = DarkTint,
+    onSecondaryContainer = DarkLogoStart,
+    tertiary = DarkAccent,
+    onTertiary = DarkOnAccent,
+    background = DarkBackground,
+    onBackground = DarkText,
+    surface = DarkCard,
+    onSurface = DarkText,
+    surfaceVariant = DarkBackground,
+    onSurfaceVariant = DarkSoftText,
+    surfaceContainerLowest = DarkCard,
+    surfaceContainerLow = DarkCard,
+    surfaceContainer = DarkCard,
+    surfaceContainerHigh = DarkCard,
+    surfaceContainerHighest = DarkCard,
+    outline = DarkBorder,
+    outlineVariant = DarkBorder,
+    error = DarkError,
+    onError = DarkOnAccent,
+)
+
+/**
+ * Le thème de Cartilou. [darkTheme] : clair ou sombre, d'après le réglage du
+ * téléphone (un réglage dans l'appli, comme dans Canapilou, pourra venir plus tard).
+ */
 @Composable
 fun CartilouTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

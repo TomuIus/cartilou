@@ -154,7 +154,7 @@ private fun OwnedSeriesList(onOpenSerie: (SerieBrief) -> Unit, modifier: Modifie
                 ListItem(
                     headlineContent = { Text(serie.name) },
                     supportingContent = { Text(cardsText(countBySerie.getValue(serie.id))) },
-                    leadingContent = { SerieLogo(serie.logo) },
+                    leadingContent = { SerieLogo(serie.logo, serie.name) },
                     modifier = Modifier.clickable { onOpenSerie(serie) },
                 )
                 HorizontalDivider()
