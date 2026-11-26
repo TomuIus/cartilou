@@ -81,8 +81,10 @@ private fun CardDetails(card: Card) {
         DetailRow("Catégorie", card.category)
         DetailRow("Illustrateur", card.illustrator)
 
+        // « Connues de TCGdex » : sa liste est parfois incomplète (des reverse
+        // manquent pour des cartes Noir & Blanc, XY, Soleil & Lune, constaté en test).
         Text(
-            text = "Versions existantes (d'après TCGdex)",
+            text = "Versions connues de TCGdex",
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 8.dp),
         )

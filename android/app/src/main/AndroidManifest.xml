@@ -5,7 +5,9 @@
     <!-- Accès à Internet : nécessaire pour interroger TCGdex et charger les images. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- android:name : la classe créée au lancement, avant tout écran (prépare le cache TCGdex). -->
     <application
+        android:name=".CartilouApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
