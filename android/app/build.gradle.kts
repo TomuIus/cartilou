@@ -59,6 +59,11 @@ dependencies {
     // Coil : images des cartes et logos des extensions, téléchargées par Ktor.
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor3)
+    // Supabase : connexion (auth) et lecture/écriture de la collection
+    // (postgrest). Utilise le moteur Ktor déclaré plus haut.
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

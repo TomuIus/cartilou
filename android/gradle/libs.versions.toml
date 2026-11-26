@@ -23,6 +23,9 @@ ktor = "3.6.0"
 # Coil : affichage des images (cartes, logos), téléchargées par Ktor (même
 # version que Canapilou, qui la branche sur OkHttp).
 coil = "3.6.3"
+# Bibliothèque Kotlin de Supabase (connexion, lecture et écriture de la
+# collection) : même version que Canapilou.
+supabase = "3.9.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -55,6 +58,10 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 # Coil 3 : affichage d'images dans Compose, et téléchargement par Ktor 3.
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
+# supabase-kt : la « BOM » fixe une version commune à tous ses modules.
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
