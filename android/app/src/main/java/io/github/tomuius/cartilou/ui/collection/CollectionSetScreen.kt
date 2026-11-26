@@ -34,6 +34,10 @@ import io.github.tomuius.cartilou.ui.common.CardTile
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
+import io.github.tomuius.cartilou.ui.common.QuickEntryBar
+import io.github.tomuius.cartilou.ui.common.QuickEntryState
+import io.github.tomuius.cartilou.ui.common.QuickEntryViewModel
+import io.github.tomuius.cartilou.ui.common.ownedCopies
 
 /** Le filtre de la grille. « Toutes » par défaut : la vue classeur. */
 enum class CardFilter(val label: String) {
@@ -49,7 +53,11 @@ class OwnedSetViewModel(setId: String) : LoadViewModel<CardSet>({ Tcgdex.set(set
  * Ma collection, troisième écran : les cartes d'une extension, en grille.
  * Vos cartes sont en couleur avec le nombre d'exemplaires (« ×2 ») ; les
  * manquantes, pâles. Le filtre en haut choisit lesquelles afficher.
- * Un appui ouvre la fiche de la carte (où l'on ajoute ou retire).
+ * Un appui ouvre la fiche de la carte (où l'on ajoute ou retire), sauf en
+ * saisie rapide (voir ui/common/QuickEntry.kt) : un appui ajoute alors un
+ * exemplaire, un appui long en retire un.
+ *
+ * [onSignIn] : ouvre l'onglet Compte (saisie rapide sans être connecté).
  */
 @Composable
 fun CollectionSetScreen(
@@ -57,7 +65,10 @@ fun CollectionSetScreen(
     setName: String,
     onBack: () -> Unit,
     onOpenCard: (CardBrief) -> Unit,
+    onSignIn: () -> Unit,
 ) {
+    // Créé avant « val viewModel » ci-dessous, qui sinon masquerait la fonction viewModel { … }.
+    val quick = viewModel { QuickEntryViewModel(setId) }
     val viewModel = viewModel { OwnedSetViewModel(setId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val owned = OwnedCards.collection.collectAsStateWithLifecycle().value
@@ -69,17 +80,15 @@ fun CollectionSetScreen(
         if (owned == null) {
             CollectionUnavailable(modifier)
         } else {
-            // Nombre d'exemplaires de chaque carte possédée de l'extension, toutes versions additionnées.
-            val copiesByCard = remember(owned, setId) {
-                owned.filter { it.setId == setId }
-                    .groupBy { it.cardId }
-                    .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
+            // Les lignes de la collection pour chaque carte possédée de l'extension.
+            val linesByCard = remember(owned, setId) {
+                owned.filter { it.setId == setId }.groupBy { it.cardId }
             }
             LoadStateContent(state, onRetry = viewModel::reload, modifier = modifier) { set ->
                 val shown = when (filter) {
                     CardFilter.All -> set.cards
-                    CardFilter.Owned -> set.cards.filter { it.id in copiesByCard }
-                    CardFilter.Missing -> set.cards.filter { it.id !in copiesByCard }
+                    CardFilter.Owned -> set.cards.filter { it.id in linesByCard }
+                    CardFilter.Missing -> set.cards.filter { it.id !in linesByCard }
                 }
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 104.dp),
@@ -87,15 +96,16 @@ fun CollectionSetScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    // En-tête sur toute la largeur : avancement et filtre.
+                    // En-tête sur toute la largeur : avancement, filtre et saisie rapide.
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = progressText(copiesByCard.size, set.cardCount?.total ?: set.cards.size),
+                                text = progressText(linesByCard.size, set.cardCount?.total ?: set.cards.size),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             FilterRow(filter, onSelect = { filter = it })
+                            QuickEntryBar(quick, onSignIn = onSignIn)
                         }
                     }
                     if (shown.isEmpty()) {
@@ -111,14 +121,28 @@ fun CollectionSetScreen(
                         }
                     }
                     items(shown, key = { it.id }) { card ->
-                        val copies = copiesByCard[card.id]
-                        CardTile(
-                            card = card,
-                            onClick = { onOpenCard(card) },
-                            badge = copies?.let { "×$it" },
-                            // Pâle seulement dans « Toutes » : dans « Manquantes », elles le sont toutes.
-                            dimmed = copies == null && filter == CardFilter.All,
-                        )
+                        val lines = linesByCard[card.id]
+                        if (quick.state == QuickEntryState.On) {
+                            // Saisie rapide : nombre d'exemplaires de la version choisie
+                            // (toutes versions pour « Proposée ») ; pâle s'il n'y en a aucun.
+                            val copies = ownedCopies(lines, quick.selected.version)
+                            CardTile(
+                                card = card,
+                                onClick = { quick.change(card, +1) },
+                                onLongClick = { quick.change(card, -1) },
+                                badge = if (copies > 0) "×$copies" else null,
+                                dimmed = copies == 0,
+                            )
+                        } else {
+                            val copies = ownedCopies(lines, version = null)
+                            CardTile(
+                                card = card,
+                                onClick = { onOpenCard(card) },
+                                badge = if (copies > 0) "×$copies" else null,
+                                // Pâle seulement dans « Toutes » : dans « Manquantes », elles le sont toutes.
+                                dimmed = copies == 0 && filter == CardFilter.All,
+                            )
+                        }
                     }
                 }
             }

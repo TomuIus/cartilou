@@ -1,6 +1,7 @@
 package io.github.tomuius.cartilou.ui.common
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,21 +25,26 @@ private const val DIMMED_ALPHA = 0.35f
  * Une carte de grille : son image (petite qualité), puis son numéro et son nom.
  * Commune au Catalogue et à Ma collection.
  *
+ * @param onLongClick appui long (saisie rapide : retirer un exemplaire), ou null.
  * @param badge petit texte en haut à droite de l'image (par exemple « ×2 »), ou null.
  * @param dimmed vrai pour une carte manquante : affichée pâle, comme un
  *   emplacement vide de classeur.
  */
+// @OptIn : « combinedClickable » (appui simple + appui long) est peut-être
+// encore marqué « expérimental » dans cette version de la bibliothèque.
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CardTile(
     card: CardBrief,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     badge: String? = null,
     dimmed: Boolean = false,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .alpha(if (dimmed) DIMMED_ALPHA else 1f),
     ) {
         // Box : superpose le badge sur l'image.

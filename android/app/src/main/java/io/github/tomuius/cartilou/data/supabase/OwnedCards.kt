@@ -51,6 +51,14 @@ fun tcgdexVersions(variants: CardVariants?): List<CardVersion> {
     }
 }
 
+/**
+ * La version « proposée » d'une carte : la première connue de TCGdex
+ * (normale, reverse, holo, 1re édition, dans cet ordre), sinon la normale.
+ * Par exemple la holo pour une rare qui n'existe qu'en holo.
+ */
+fun proposedVersion(variants: CardVariants?): CardVersion =
+    tcgdexVersions(variants).firstOrNull() ?: CardVersion.Normal
+
 // Les lignes de la table telles qu'échangées avec Supabase. @SerialName :
 // le nom de la colonne, quand il diffère du nom Kotlin.
 
@@ -133,6 +141,14 @@ object OwnedCards {
      */
     val collection: StateFlow<List<OwnedCard>?> = _collection.asStateFlow()
 
+    /**
+     * Les quantités confirmées par Supabase, par carte et version. Pendant
+     * une saisie rapide, la collection en mémoire peut être en avance sur
+     * Supabase (enregistrements en cours) : ceci garde la dernière valeur
+     * sûre, pour savoir quoi envoyer et où revenir en cas d'échec.
+     */
+    private val confirmed = mutableMapOf<Pair<String, CardVersion>, Int>()
+
     /** Lit toute la collection dans Supabase (par paquets de [PAGE_SIZE] lignes). */
     suspend fun loadCollection() {
         withFrenchErrors {
@@ -158,6 +174,8 @@ object OwnedCards {
                 if (page.size < PAGE_SIZE) break // dernier paquet
                 from += PAGE_SIZE
             }
+            confirmed.clear()
+            all.forEach { confirmed[it.cardId to it.version] = it.quantity }
             _collection.value = all
         }
     }
@@ -165,6 +183,7 @@ object OwnedCards {
     /** Oublie la collection gardée en mémoire (à la déconnexion). */
     fun forgetCollection() {
         _collection.value = null
+        confirmed.clear()
     }
 
     /** Le nombre d'exemplaires possédés de chaque version d'une carte (versions absentes = 0). */
@@ -181,31 +200,94 @@ object OwnedCards {
     }
 
     /**
-     * Enregistre le nombre d'exemplaires d'une version.
+     * Enregistre le nombre d'exemplaires d'une version (depuis la fiche d'une
+     * carte), puis le reporte dans la collection en mémoire.
+     */
+    suspend fun setQuantity(card: Card, version: CardVersion, quantity: Int) {
+        writeQuantity(card.id, card.set.id, version, quantity)
+        confirmed[card.id to version] = quantity
+        updateCollection(card.id, version, lineOrNull(card.id, card.set.id, version, quantity))
+    }
+
+    // --- Saisie rapide (grille d'une extension) ---
+
+    /**
+     * Prépare la saisie rapide dans une extension : lit la collection si ce
+     * n'est pas déjà fait (onglet Ma collection jamais ouvert), et la série de
+     * l'extension chez TCGdex (nécessaire pour enregistrer).
+     */
+    suspend fun prepareQuickEntry(setId: String) {
+        if (_collection.value == null) loadCollection()
+        withFrenchErrors { serieIdOf(setId) }
+    }
+
+    /**
+     * Saisie rapide : ajoute ([delta] = +1) ou retire (-1) un exemplaire.
+     *
+     * Le nouveau nombre apparaît tout de suite (collection en mémoire), puis
+     * part vers Supabase. Plusieurs appuis rapides : les enregistrements
+     * passent l'un après l'autre et chacun envoie le nombre affiché à ce
+     * moment-là ; ceux qui n'ont plus rien à changer ne partent pas.
+     * En cas d'échec, le nombre revient à la dernière valeur enregistrée et
+     * [onError] reçoit le message.
+     */
+    fun changeQuantity(
+        cardId: String,
+        setId: String,
+        version: CardVersion,
+        delta: Int,
+        onError: (String) -> Unit,
+    ) {
+        val list = _collection.value ?: return
+        val current = list.firstOrNull { it.cardId == cardId && it.version == version }?.quantity ?: 0
+        val wanted = (current + delta).coerceAtLeast(0)
+        if (wanted == current) return
+        updateCollection(cardId, version, lineOrNull(cardId, setId, version, wanted))
+        launchWrite { flush(cardId, setId, version, onError) }
+    }
+
+    /** Envoie à Supabase le nombre affiché pour cette carte et version, s'il a changé. */
+    private suspend fun flush(cardId: String, setId: String, version: CardVersion, onError: (String) -> Unit) {
+        // Collection oubliée entre-temps (déconnexion) : surtout ne rien envoyer.
+        val list = _collection.value ?: return
+        val wanted = list.firstOrNull { it.cardId == cardId && it.version == version }?.quantity ?: 0
+        val before = confirmed[cardId to version] ?: 0
+        if (wanted == before) return
+        try {
+            writeQuantity(cardId, setId, version, wanted)
+            confirmed[cardId to version] = wanted
+        } catch (e: DisplayableException) {
+            updateCollection(cardId, version, lineOrNull(cardId, setId, version, before))
+            onError(e.message ?: "Erreur inconnue.")
+        }
+    }
+
+    // --- Outils internes ---
+
+    /**
+     * Écrit dans Supabase le nombre d'exemplaires d'une version.
      * À 0, la ligne est supprimée (une ligne n'existe que si l'on possède la carte).
      * Sinon, « upsert » : ajoute la ligne si elle n'existe pas, la met à jour sinon.
      */
-    suspend fun setQuantity(card: Card, version: CardVersion, quantity: Int) {
+    private suspend fun writeQuantity(cardId: String, setId: String, version: CardVersion, quantity: Int) {
         withFrenchErrors {
             val userId = requireUserId()
             if (quantity <= 0) {
                 table.delete {
                     filter {
                         eq("utilisateur_id", userId)
-                        eq("carte_id", card.id)
+                        eq("carte_id", cardId)
                         eq("version", version.dbValue)
                     }
                 }
-                updateCollection(card.id, version, newLine = null)
             } else {
-                val serieId = serieIdOf(card.set.id)
                 val row = OwnedCardRow(
                     userId = userId,
-                    cardId = card.id,
+                    cardId = cardId,
                     version = version.dbValue,
                     quantity = quantity,
-                    setId = card.set.id,
-                    serieId = serieId,
+                    setId = setId,
+                    serieId = serieIdOf(setId),
                 )
                 table.upsert(row) {
                     // Deux lignes sont « la même » si ces trois colonnes sont égales (la clé de la table).
@@ -213,15 +295,24 @@ object OwnedCards {
                     // Colonnes absentes (dates) : valeur par défaut de la table, pas « vide ».
                     defaultToNull = false
                 }
-                updateCollection(card.id, version, OwnedCard(card.id, version, quantity, card.set.id, serieId))
             }
         }
     }
 
     /**
-     * Reporte un enregistrement réussi dans la collection gardée en mémoire
-     * (si elle a été lue) : remplace la ligne de cette carte et version, ou
-     * la retire si [newLine] est null.
+     * La ligne en mémoire pour ce nombre d'exemplaires, ou null à 0 (ou si la
+     * série de l'extension n'est pas encore connue, ce qui n'arrive pas après
+     * un enregistrement ou une préparation de saisie rapide).
+     */
+    private fun lineOrNull(cardId: String, setId: String, version: CardVersion, quantity: Int): OwnedCard? {
+        if (quantity <= 0) return null
+        val serieId = serieBySet[setId] ?: return null
+        return OwnedCard(cardId, version, quantity, setId, serieId)
+    }
+
+    /**
+     * Met à jour la collection gardée en mémoire (si elle a été lue) :
+     * remplace la ligne de cette carte et version, ou la retire si [newLine] est null.
      */
     private fun updateCollection(cardId: String, version: CardVersion, newLine: OwnedCard?) {
         _collection.update { list ->

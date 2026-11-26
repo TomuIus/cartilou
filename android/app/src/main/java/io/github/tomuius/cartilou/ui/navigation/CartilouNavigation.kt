@@ -209,6 +209,7 @@ fun CartilouNavigation() {
                         setName = route.name,
                         onBack = { tabs.back() },
                         onOpenCard = { card -> tabs.open(CardRoute(card.id, card.name)) },
+                        onSignIn = { tabs.select(Tab.Account) },
                     )
                 }
                 entry<CardRoute> { route ->
@@ -239,6 +240,7 @@ fun CartilouNavigation() {
                         setName = route.name,
                         onBack = { tabs.back() },
                         onOpenCard = { card -> tabs.open(CollectionCardRoute(card.id, card.name)) },
+                        onSignIn = { tabs.select(Tab.Account) },
                     )
                 }
                 entry<CollectionCardRoute> { route ->
