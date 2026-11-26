@@ -1,7 +1,6 @@
 package io.github.tomuius.cartilou.ui.catalogue
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,16 +12,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import io.github.tomuius.cartilou.data.tcgdex.CardCount
 import io.github.tomuius.cartilou.data.tcgdex.CardSetBrief
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.data.tcgdex.assetUrl
+import io.github.tomuius.cartilou.data.tcgdex.assetUrls
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.FallbackImage
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 
@@ -54,7 +52,7 @@ fun SerieScreen(
                         headlineContent = { Text(set.name) },
                         // Deuxième ligne seulement si TCGdex donne le nombre de cartes.
                         supportingContent = countText?.let { text -> @Composable { Text(text) } },
-                        leadingContent = { SetLogo(set.logo ?: set.symbol) },
+                        leadingContent = { SetLogo(set) },
                         modifier = Modifier.clickable { onOpenSet(set) },
                     )
                     HorizontalDivider()
@@ -74,18 +72,15 @@ private fun cardCountText(count: CardCount?): String? {
     return if (secret > 0) "$official cartes (+ $secret secrètes)" else "$official cartes"
 }
 
-/** Le logo de l'extension (ou à défaut son symbole). */
+/**
+ * Le logo de l'extension ; s'il ne se charge pas (ni en français, ni en
+ * anglais), son symbole ; sinon un espace vide de même taille.
+ */
 @Composable
-private fun SetLogo(asset: String?) {
-    val url = assetUrl(asset)
-    if (url != null) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.size(width = 72.dp, height = 40.dp),
-        )
-    } else {
-        Box(Modifier.size(width = 72.dp, height = 40.dp))
-    }
+private fun SetLogo(set: CardSetBrief) {
+    FallbackImage(
+        urls = assetUrls(set.logo) + assetUrls(set.symbol),
+        contentDescription = null,
+        modifier = Modifier.size(width = 72.dp, height = 40.dp),
+    )
 }

@@ -58,13 +58,31 @@ object Tcgdex {
 // Adresses des images. TCGdex donne une adresse de base, à compléter :
 // - cartes : « /low.webp » (245 × 337) ou « /high.webp » (600 × 825) ;
 // - logos et symboles : « .webp ».
-// Le format webp est le plus compact. Les fonctions renvoient null s'il n'y a
-// pas d'image.
+// Le format webp est le plus compact ; le png existe aussi.
+//
+// Chaque fonction renvoie la liste des adresses à essayer dans l'ordre (voir
+// ui/common/FallbackImage.kt). Liste vide = TCGdex ne donne pas d'image.
 
-/** Image d'une carte, en petite (« low ») ou grande (« high ») qualité. */
-fun cardImageUrl(image: String?, quality: String = "low"): String? =
-    image?.let { "$it/$quality.webp" }
+/**
+ * Image d'une carte, en petite (« low ») ou grande (« high ») qualité :
+ * en webp, puis en png. Toujours dans la langue de la carte (pas d'image
+ * anglaise, pour ne pas montrer une carte différente de la carte française).
+ */
+fun cardImageUrls(image: String?, quality: String = "low"): List<String> =
+    if (image == null) emptyList() else listOf("$image/$quality.webp", "$image/$quality.png")
 
-/** Logo ou symbole d'une série ou d'une extension. */
-fun assetUrl(asset: String?): String? =
-    asset?.let { "$it.webp" }
+/**
+ * Logo ou symbole d'une série ou d'une extension : en français (webp, puis
+ * png), puis en anglais en dernier recours (un logo reste reconnaissable).
+ * Les symboles sont communs à toutes les langues (« /univ/ » dans l'adresse) :
+ * dans ce cas, pas de version anglaise à essayer.
+ */
+fun assetUrls(asset: String?): List<String> {
+    if (asset == null) return emptyList()
+    val english = asset.replace("/fr/", "/en/")
+    return buildList {
+        add("$asset.webp")
+        add("$asset.png")
+        if (english != asset) add("$english.webp")
+    }
+}

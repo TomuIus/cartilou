@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -21,18 +22,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import io.github.tomuius.cartilou.data.tcgdex.CardBrief
 import io.github.tomuius.cartilou.data.tcgdex.CardSet
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.data.tcgdex.cardImageUrl
+import io.github.tomuius.cartilou.data.tcgdex.cardImageUrls
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.FallbackImage
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 import java.time.LocalDate
@@ -80,31 +80,23 @@ fun SetScreen(setId: String, setName: String, onBack: () -> Unit) {
 @Composable
 private fun CardTile(card: CardBrief) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        val url = cardImageUrl(card.image)
         val imageModifier = Modifier
             .fillMaxWidth()
             .aspectRatio(CARD_RATIO)
             .clip(RoundedCornerShape(6.dp))
-        if (url != null) {
-            AsyncImage(
-                model = url,
-                contentDescription = card.name,
-                contentScale = ContentScale.Fit,
-                modifier = imageModifier,
-            )
+        if (card.image == null) {
+            // TCGdex ne donne aucune image pour cette carte.
+            MissingImage(card.name, reason = "pas d'image", modifier = imageModifier)
         } else {
-            // Image absente chez TCGdex : un cadre gris avec le nom, pour la repérer en test.
-            Box(
-                modifier = imageModifier.background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "${card.name}\n(pas d'image)",
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(4.dp),
-                )
-            }
+            // TCGdex donne une image, mais elle peut ne pas se charger (ni en webp, ni en png).
+            FallbackImage(
+                urls = cardImageUrls(card.image),
+                contentDescription = card.name,
+                modifier = imageModifier,
+                onAllFailed = {
+                    MissingImage(card.name, reason = "image introuvable", modifier = Modifier.fillMaxSize())
+                },
+            )
         }
         Text(
             text = "${card.localId} · ${card.name}",
@@ -112,6 +104,25 @@ private fun CardTile(card: CardBrief) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+/**
+ * Cadre gris à la place d'une image de carte, avec le nom et la raison
+ * (« pas d'image » ou « image introuvable »), pour repérer ces cas en test.
+ */
+@Composable
+private fun MissingImage(name: String, reason: String, modifier: Modifier) {
+    Box(
+        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "$name\n($reason)",
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(4.dp),
         )
     }
 }

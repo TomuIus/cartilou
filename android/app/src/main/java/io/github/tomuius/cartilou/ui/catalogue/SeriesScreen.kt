@@ -1,7 +1,6 @@
 package io.github.tomuius.cartilou.ui.catalogue
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,25 +12,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import io.github.tomuius.cartilou.data.tcgdex.SerieBrief
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.data.tcgdex.assetUrl
+import io.github.tomuius.cartilou.data.tcgdex.assetUrls
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.FallbackImage
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 
 /**
- * Charge la liste des séries.
- *
- * TCGdex semble les renvoyer de la plus ancienne à la plus récente (à vérifier
- * en testant) : on inverse l'ordre pour avoir les plus récentes en haut.
+ * Séries masquées dans le catalogue. « tcgp » : TCG Pocket, le jeu de cartes
+ * sur téléphone, dont les cartes n'existent pas en vrai.
  */
-class SeriesViewModel : LoadViewModel<List<SerieBrief>>({ Tcgdex.series().asReversed() })
+private val HIDDEN_SERIES = setOf("tcgp")
+
+/**
+ * Charge la liste des séries, sans les séries masquées.
+ *
+ * TCGdex les renvoie de la plus ancienne à la plus récente (constaté en test
+ * le 26/11/2026) : on inverse l'ordre pour avoir les plus récentes en haut.
+ */
+class SeriesViewModel : LoadViewModel<List<SerieBrief>>({
+    Tcgdex.series().filter { it.id !in HIDDEN_SERIES }.asReversed()
+})
 
 /** Premier écran : la liste des séries. Un appui ouvre la série. */
 @Composable
@@ -62,15 +68,9 @@ fun SeriesScreen(onOpenSerie: (SerieBrief) -> Unit) {
 /** Le logo d'une série, ou un espace vide de même taille s'il n'y en a pas. */
 @Composable
 private fun SerieLogo(logo: String?) {
-    val url = assetUrl(logo)
-    if (url != null) {
-        AsyncImage(
-            model = url,
-            contentDescription = null, // purement décoratif : le nom est écrit à côté
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.size(width = 72.dp, height = 40.dp),
-        )
-    } else {
-        Box(Modifier.size(width = 72.dp, height = 40.dp))
-    }
+    FallbackImage(
+        urls = assetUrls(logo),
+        contentDescription = null, // purement décoratif : le nom est écrit à côté
+        modifier = Modifier.size(width = 72.dp, height = 40.dp),
+    )
 }
