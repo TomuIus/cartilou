@@ -21,10 +21,11 @@ import io.github.tomuius.cartilou.ui.common.LoadViewModel
 import io.github.tomuius.cartilou.ui.common.SerieLogo
 
 /**
- * Séries masquées dans le catalogue. « tcgp » : TCG Pocket, le jeu de cartes
- * sur téléphone, dont les cartes n'existent pas en vrai.
+ * Séries masquées dans le catalogue (et dans le choix de l'extension à
+ * scanner). « tcgp » : TCG Pocket, le jeu de cartes sur téléphone, dont les
+ * cartes n'existent pas en vrai.
  */
-private val HIDDEN_SERIES = setOf("tcgp")
+internal val HIDDEN_SERIES = setOf("tcgp")
 
 /**
  * Charge la liste des séries, sans les séries masquées.
