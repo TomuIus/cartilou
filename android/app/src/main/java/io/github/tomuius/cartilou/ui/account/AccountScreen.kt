@@ -27,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -39,6 +40,7 @@ import io.github.tomuius.cartilou.data.supabase.Account
 import io.github.tomuius.cartilou.data.supabase.AccountState
 import io.github.tomuius.cartilou.data.supabase.DisplayableException
 import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.TilouImage
 import kotlinx.coroutines.launch
 
 /**
@@ -129,6 +131,21 @@ private fun SignInForm(busy: Boolean, error: String?, onSignIn: (String, String)
     var password by remember { mutableStateOf("") }
     val canSubmit = !busy && email.isNotBlank() && password.isNotEmpty()
 
+    // Tilou et le nom de l'appli, centrés, comme sur l'écran de connexion de
+    // Canapilou. Hauteur de Tilou : 180 dp, choix de Claude (à revoir après des tests).
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TilouImage(height = 180.dp)
+        Text(
+            text = "Cartilou",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
     Text("Connexion", style = MaterialTheme.typography.headlineSmall)
     Text(
         text = "Utilisez le même compte que Canapilou.",

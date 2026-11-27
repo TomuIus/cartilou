@@ -1,6 +1,8 @@
 package io.github.tomuius.cartilou.ui.collection
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,6 +37,7 @@ import io.github.tomuius.cartilou.ui.common.CartilouTopBar
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 import io.github.tomuius.cartilou.ui.common.SerieLogo
+import io.github.tomuius.cartilou.ui.common.TilouImage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -127,10 +131,21 @@ fun CollectionScreen(onSignIn: () -> Unit, onOpenSerie: (SerieBrief) -> Unit) {
 private fun OwnedSeriesList(onOpenSerie: (SerieBrief) -> Unit, modifier: Modifier) {
     val owned = OwnedCards.collection.collectAsStateWithLifecycle().value.orEmpty()
     if (owned.isEmpty()) {
-        CenteredMessage(
-            "Votre collection est vide.\nAjoutez des cartes depuis leur fiche, dans l'onglet Catalogue.",
-            modifier,
-        )
+        // Tilou à côté du message, comme la liste vide de Canapilou.
+        // Tilou de 140 dp de haut : choix de Claude (à revoir après des tests).
+        CenteredContent(modifier) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                TilouImage(height = 140.dp)
+                Text(
+                    text = "Votre collection est vide pour l'instant.\n" +
+                        "Ajoutez des cartes depuis leur fiche ou avec la saisie rapide, dans l'onglet Catalogue.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         return
     }
 

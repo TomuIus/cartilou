@@ -20,8 +20,23 @@ import io.github.tomuius.cartilou.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartilouTopBar(title: String, onBack: (() -> Unit)? = null) {
+    CartilouTopBar(onBack = onBack) {
+        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** La barre du haut avec le logo (Tilou + « Cartilou ») à la place du titre. */
+@Composable
+fun CartilouLogoTopBar() {
+    CartilouTopBar(onBack = null) { CartilouLogo() }
+}
+
+/** La barre du haut, avec un contenu de titre quelconque. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CartilouTopBar(onBack: (() -> Unit)?, titleContent: @Composable () -> Unit) {
     TopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        title = titleContent,
         navigationIcon = {
             if (onBack != null) {
                 IconButton(onClick = onBack) {

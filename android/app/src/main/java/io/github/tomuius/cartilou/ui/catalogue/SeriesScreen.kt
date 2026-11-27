@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.tomuius.cartilou.data.tcgdex.SerieBrief
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
-import io.github.tomuius.cartilou.ui.common.CartilouTopBar
+import io.github.tomuius.cartilou.ui.common.CartilouLogoTopBar
 import io.github.tomuius.cartilou.ui.common.LoadStateContent
 import io.github.tomuius.cartilou.ui.common.LoadViewModel
 import io.github.tomuius.cartilou.ui.common.SerieLogo
@@ -45,7 +45,7 @@ fun SeriesScreen(onOpenSerie: (SerieBrief) -> Unit) {
     // Observe l'état : l'écran se redessine à chaque changement.
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { CartilouTopBar("Séries") }) { innerPadding ->
+    Scaffold(topBar = { CartilouLogoTopBar() }) { innerPadding ->
         LoadStateContent(state, onRetry = viewModel::reload, modifier = Modifier.padding(innerPadding)) { series ->
             // LazyColumn : liste qui ne dessine que les lignes visibles à l'écran.
             LazyColumn {

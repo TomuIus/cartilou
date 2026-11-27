@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Icône de l'appli : Tilou aux cartes (illustrations/tilou_cartes.png) sur un
+     bleu très pâle tiré du bleu des cartes (décisions du 27/11/2026).
+     Icône « adaptative » : chaque téléphone la découpe à sa forme (rond,
+     carré arrondi…). Comme dans Canapilou, le corps de Tilou continue sous le
+     bord visible : aucune coupure ne se voit, quelle que soit la forme.
+     Pas de version monochrome pour l'instant : d'après la documentation
+     Android, à partir d'Android 16 QPR 2, le système fabrique lui-même une
+     icône « à thème » pour les applis qui n'en fournissent pas. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@drawable/ic_launcher_background" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
-    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+    <foreground android:drawable="@mipmap/ic_launcher_tilou" />
 </adaptive-icon>
