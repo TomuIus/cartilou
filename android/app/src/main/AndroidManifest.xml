@@ -5,7 +5,14 @@
     <!-- Accès à Internet : nécessaire pour interroger TCGdex et charger les images. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- android:name : la classe créée au lancement, avant tout écran (prépare le cache TCGdex). -->
+    <!-- Caméra : pour le scan des cartes (onglet Scanner). L'autorisation est
+         demandée à l'utilisateur la première fois qu'il ouvre l'onglet.
+         « required=false » : l'appli s'installe aussi sur un appareil sans
+         caméra (seul le scan y est inutilisable). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- android:name : la classe créée au lancement, avant tout écran (prépare le cache TCGdex et le panier du scan). -->
     <application
         android:name=".CartilouApplication"
         android:allowBackup="true"

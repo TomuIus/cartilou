@@ -26,6 +26,13 @@ coil = "3.6.3"
 # Bibliothèque Kotlin de Supabase (connexion, lecture et écriture de la
 # collection) : même version que Canapilou.
 supabase = "3.9.0"
+# CameraX : la caméra (aperçu et analyse des images) pour le scan. Version
+# stable la plus récente en novembre 2026 (notes de version Android).
+camerax = "1.6.2"
+# ML Kit, lecture du texte (alphabet latin), modèle intégré à l'appli :
+# fonctionne sans réseau et sans les services Google Play. Composant gratuit
+# de Google mais PAS open source (décision du 27/11/2026).
+mlkitTextRecognition = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -62,6 +69,13 @@ coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", 
 supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
 supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
 supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+# CameraX : moteur caméra (camera2), liaison au cycle de vie des écrans, et
+# vue d'aperçu (PreviewView) avec son « contrôleur ».
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+# ML Kit : reconnaissance de texte, modèle intégré (« bundled »).
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

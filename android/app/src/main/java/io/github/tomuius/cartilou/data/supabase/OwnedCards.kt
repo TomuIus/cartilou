@@ -262,6 +262,24 @@ object OwnedCards {
         }
     }
 
+    // --- Panier du scan ---
+
+    /**
+     * Ajoute [count] exemplaires d'une version à la collection (validation du
+     * panier du scan) : nombre déjà possédé + [count]. Attend la fin des
+     * enregistrements en cours, puis enregistre ; lit la collection d'abord
+     * si ce n'est pas déjà fait (pour connaître le nombre déjà possédé).
+     */
+    suspend fun addCopies(cardId: String, setId: String, version: CardVersion, count: Int) {
+        writeLock.withLock {
+            if (_collection.value == null) loadCollection()
+            val wanted = (confirmed[cardId to version] ?: 0) + count
+            writeQuantity(cardId, setId, version, wanted)
+            confirmed[cardId to version] = wanted
+            updateCollection(cardId, version, lineOrNull(cardId, setId, version, wanted))
+        }
+    }
+
     // --- Outils internes ---
 
     /**

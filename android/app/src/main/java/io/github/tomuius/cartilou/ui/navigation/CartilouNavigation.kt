@@ -34,6 +34,7 @@ import io.github.tomuius.cartilou.ui.catalogue.SetScreen
 import io.github.tomuius.cartilou.ui.collection.CollectionScreen
 import io.github.tomuius.cartilou.ui.collection.CollectionSerieScreen
 import io.github.tomuius.cartilou.ui.collection.CollectionSetScreen
+import io.github.tomuius.cartilou.ui.scanner.ScannerScreen
 import kotlinx.serialization.Serializable
 
 // Les « clés » de navigation : une par écran, avec ce dont l'écran a besoin.
@@ -76,6 +77,10 @@ data class CollectionSetRoute(val id: String, val name: String) : NavKey
 @Serializable
 data class CollectionCardRoute(val id: String, val name: String) : NavKey
 
+/** Racine de l'onglet Scanner (le scan et son panier). */
+@Serializable
+data object ScannerRoute : NavKey
+
 /** Racine de l'onglet Compte. */
 @Serializable
 data object AccountRoute : NavKey
@@ -84,6 +89,7 @@ data object AccountRoute : NavKey
 enum class Tab(val label: String, @param:DrawableRes val icon: Int, val root: NavKey) {
     Catalogue("Catalogue", R.drawable.ic_onglet_catalogue, SeriesRoute),
     Collection("Ma collection", R.drawable.ic_onglet_collection, CollectionRoute),
+    Scanner("Scanner", R.drawable.ic_onglet_scanner, ScannerRoute),
     Account("Compte", R.drawable.ic_onglet_compte, AccountRoute),
 }
 
@@ -250,6 +256,9 @@ fun CartilouNavigation() {
                         onBack = { tabs.back() },
                         onSignIn = { tabs.select(Tab.Account) },
                     )
+                }
+                entry<ScannerRoute> {
+                    ScannerScreen(onSignIn = { tabs.select(Tab.Account) })
                 }
                 entry<AccountRoute> {
                     AccountScreen()

@@ -70,6 +70,19 @@ object Tcgdex {
     suspend fun card(id: String): Card = getCached("cards", id)
 
     /**
+     * Toutes les cartes, en bref : identifiant, numéro, nom, image
+     * (GET /v2/fr/cards). Sert au scan, qui retrouve une carte d'après son
+     * nom et son numéro sans rien demander au réseau à chaque image.
+     * D'après la documentation de TCGdex, la pagination est désactivée par
+     * défaut : on reçoit toute la liste d'un coup (taille non vérifiée,
+     * probablement quelques Mo ; gardée 7 jours dans le cache comme le reste).
+     */
+    suspend fun allCards(): List<CardBrief> = getCached("cards")
+
+    /** Toutes les extensions, en bref, avec leur nombre de cartes (GET /v2/fr/sets). */
+    suspend fun allSets(): List<CardSetBrief> = getCached("sets")
+
+    /**
      * Demande une adresse (par exemple « sets », « swsh3 ») en passant par le
      * cache, puis transforme le JSON en objet du type attendu (T).
      *
