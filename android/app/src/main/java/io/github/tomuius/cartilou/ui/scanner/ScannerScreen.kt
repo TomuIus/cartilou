@@ -28,9 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -43,15 +41,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -89,22 +84,25 @@ import io.github.tomuius.cartilou.ui.common.CartilouTopBar
 import io.github.tomuius.cartilou.ui.common.QuickVersion
 
 // L'onglet Scanner (décisions du 27/11/2026) : la caméra lit les cartes en
-// continu (option B) ; les cartes reconnues vont dans un panier (option C),
-// qu'on vérifie avant de tout ajouter à la collection. Quand plusieurs cartes
-// sont possibles, leurs images sont comparées à la photo (option C, puis A :
-// empreinte d'image maison).
+// continu (option B) ; les cartes reconnues s'ajoutent aux « cartes scannées »
+// (ancien « panier », option C), qu'on vérifie avant de tout ajouter à la
+// collection. Quand plusieurs cartes sont possibles, leurs images sont
+// comparées à la photo (option C, puis A : empreinte d'image maison).
 // Disposition : l'aperçu de la caméra en haut, le choix de la version au
-// milieu, le panier en bas (avec, pendant les tests, le texte lu au-dessus).
+// milieu, puis l'extension et les cartes scannées (avec, si l'on active
+// « Tests », le texte lu au-dessus). « Vérifier et ajouter » ouvre les cartes
+// scannées en grand (ScannedCards.kt), d'où l'on ajoute tout à la collection.
 
 /**
- * Affiche le texte lu par ML Kit, pour les tests (décision du 27/11/2026,
- * option B). À passer à false (ou à retirer avec ReadTextPanel) une fois les
+ * Outils de test (décisions du 27 et du 28/11/2026) : l'interrupteur « Tests »
+ * dans la barre du haut, qui affiche l'encadré du texte lu (masqué par
+ * défaut). À passer à false (ou à retirer avec ReadTextPanel) une fois les
  * réglages du scan terminés.
  */
-private const val SHOW_READ_TEXT = true
+private const val TEST_TOOLS = true
 
 @Composable
-fun ScannerScreen(onSignIn: () -> Unit) {
+fun ScannerScreen(onReview: () -> Unit) {
     // Le contexte de l'appli entière (et non de cet écran) : le ViewModel peut
     // le garder sans empêcher Android de libérer l'écran.
     val appContext = LocalContext.current.applicationContext
@@ -112,30 +110,46 @@ fun ScannerScreen(onSignIn: () -> Unit) {
     val items by ScanBasket.items.collectAsStateWithLifecycle()
     var showSetPicker by rememberSaveable { mutableStateOf(false) }
 
-    // Petite vibration à chaque carte mise au panier.
+    // Petite vibration à chaque carte ajoutée aux cartes scannées.
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(viewModel.addedCount) {
         if (viewModel.addedCount > 0) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    Scaffold(topBar = { CartilouTopBar("Scanner") }) { innerPadding ->
+    Scaffold(
+        topBar = {
+            CartilouTopBar(
+                title = "Scanner",
+                actions = {
+                    if (TEST_TOOLS) {
+                        FilterChip(
+                            selected = viewModel.showTests,
+                            onClick = viewModel::toggleTests,
+                            label = { Text("Tests") },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize(),
         ) {
-            // weight : la caméra et le panier se partagent la hauteur, moitié-moitié
-            // (à revoir après des tests).
+            // weight : la caméra et les cartes scannées se partagent la hauteur,
+            // moitié-moitié (à revoir après des tests).
             CameraSection(viewModel, Modifier.fillMaxWidth().weight(1f))
             VersionChips(
                 selected = viewModel.selected,
                 onSelect = { viewModel.selected = it },
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
-            // Le bas de l'écran : l'encadré de test puis le panier. L'encadré prend
-            // sa place sur le panier et non sur la caméra : la taille de l'aperçu
-            // décide de la taille de la carte dans l'image analysée, qu'on ne veut
-            // pas changer pendant les tests.
+            // Le bas de l'écran : l'extension, l'encadré de test s'il est affiché,
+            // puis les cartes scannées. L'encadré prend sa place sur cette liste et
+            // non sur la caméra : la taille de l'aperçu décide de la taille de la
+            // carte dans l'image analysée.
             Column(Modifier.fillMaxWidth().weight(1f)) {
                 // Placé ici (et non au-dessus des versions) pour ne pas réduire la caméra.
                 SetSelector(
@@ -143,7 +157,7 @@ fun ScannerScreen(onSignIn: () -> Unit) {
                     onOpen = { showSetPicker = true },
                     onClear = { viewModel.selectSet(null) },
                 )
-                if (SHOW_READ_TEXT) {
+                if (TEST_TOOLS && viewModel.showTests) {
                     ReadTextPanel(
                         text = viewModel.testText,
                         thumbnail = viewModel.testThumbnail,
@@ -151,7 +165,7 @@ fun ScannerScreen(onSignIn: () -> Unit) {
                         onToggleFreeze = viewModel::toggleTestTextFrozen,
                     )
                 }
-                BasketSection(items, viewModel, onSignIn, Modifier.fillMaxWidth().weight(1f))
+                ScannedCardsSection(items, onReview, Modifier.fillMaxWidth().weight(1f))
             }
         }
     }
@@ -303,7 +317,7 @@ private fun SetSelector(selected: CardSetBrief?, onOpen: () -> Unit, onClear: ()
 
 // --- Version ---
 
-/** La version mise au panier pour les prochaines cartes (mêmes choix que la saisie rapide). */
+/** La version donnée aux prochaines cartes scannées (mêmes choix que la saisie rapide). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VersionChips(selected: QuickVersion, onSelect: (QuickVersion) -> Unit, modifier: Modifier) {
@@ -389,18 +403,16 @@ private fun copyToClipboard(context: Context, text: String) {
     }
 }
 
-// --- Panier ---
+// --- Cartes scannées ---
 
+/**
+ * Les cartes scannées, en petit sous la caméra : on peut déjà y corriger le
+ * nombre et la version. « Vérifier et ajouter » ouvre l'écran en grand, d'où
+ * l'on ajoute tout à la collection.
+ */
 @Composable
-private fun BasketSection(
-    items: List<BasketItem>,
-    viewModel: ScannerViewModel,
-    onSignIn: () -> Unit,
-    modifier: Modifier,
-) {
-    var confirmClear by remember { mutableStateOf(false) }
+private fun ScannedCardsSection(items: List<BasketItem>, onReview: () -> Unit, modifier: Modifier) {
     val copies = items.sumOf { it.quantity }
-
     Column(modifier) {
         HorizontalDivider()
         Row(
@@ -409,9 +421,9 @@ private fun BasketSection(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Panier", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text("Cartes scannées", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             Text(
-                if (copies <= 1) "$copies exemplaire" else "$copies exemplaires",
+                copiesLabel(copies),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -425,7 +437,7 @@ private fun BasketSection(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "Le panier est vide. Les cartes reconnues s'ajoutent ici ; rien n'est enregistré dans votre collection avant « Ajouter à ma collection ».",
+                    "Aucune carte scannée pour l'instant. Rien n'est ajouté à votre collection avant « Vérifier et ajouter ».",
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -433,120 +445,18 @@ private fun BasketSection(
         } else {
             LazyColumn(Modifier.weight(1f)) {
                 items(items, key = { it.key }) { item ->
-                    BasketRow(item)
+                    ScannedCardRow(item, setName = null, imageWidth = 44.dp)
                     HorizontalDivider()
                 }
             }
         }
-        viewModel.message?.let { text ->
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-        if (viewModel.needsSignIn) {
-            TextButton(onClick = onSignIn, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Se connecter") }
-        }
-        Row(
+        Button(
+            onClick = onReview,
+            enabled = items.isNotEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = { confirmClear = true },
-                enabled = items.isNotEmpty() && !viewModel.validating,
-            ) { Text("Vider") }
-            Button(
-                onClick = viewModel::validate,
-                enabled = items.isNotEmpty() && !viewModel.validating,
-                modifier = Modifier.weight(1f),
-            ) {
-                if (viewModel.validating) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Ajouter à ma collection")
-                }
-            }
-        }
-    }
-
-    if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text("Vider le panier ?") },
-            text = { Text("Les cartes du panier seront retirées. Rien n'a encore été ajouté à votre collection.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    ScanBasket.clear()
-                    confirmClear = false
-                }) { Text("Vider") }
-            },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Annuler") } },
-        )
-    }
-}
-
-/** Une ligne du panier : image, nom, numéro, version (à changer d'un appui), − nombre +. */
-@Composable
-private fun BasketRow(item: BasketItem) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CardImage(item.image, item.name, quality = "low", modifier = Modifier.width(44.dp))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(item.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                "N° ${item.localId}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            VersionMenu(item)
-        }
-        IconButton(onClick = { ScanBasket.setQuantity(item, item.quantity - 1) }) {
-            Icon(painterResource(R.drawable.ic_retirer), contentDescription = "Retirer un exemplaire de ${item.name}")
-        }
-        Text(
-            text = item.quantity.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(min = 24.dp),
-        )
-        IconButton(onClick = { ScanBasket.setQuantity(item, item.quantity + 1) }) {
-            Icon(painterResource(R.drawable.ic_ajouter), contentDescription = "Ajouter un exemplaire de ${item.name}")
-        }
-    }
-}
-
-/** La version d'une ligne, en couleur d'accent ; un appui ouvre la liste des versions. */
-@Composable
-private fun VersionMenu(item: BasketItem) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        Text(
-            text = (item.cardVersion?.label ?: QuickVersion.Proposed.label) + " ▾",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .clickable { open = true }
-                .padding(vertical = 4.dp),
-        )
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            QuickVersion.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = {
-                        open = false
-                        ScanBasket.setVersion(item, option.version)
-                    },
-                )
-            }
-        }
+        ) { Text("Vérifier et ajouter") }
     }
 }
 

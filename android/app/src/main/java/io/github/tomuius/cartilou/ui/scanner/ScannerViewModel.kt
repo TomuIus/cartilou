@@ -16,10 +16,6 @@ import io.github.tomuius.cartilou.data.scan.MatchResult
 import io.github.tomuius.cartilou.data.scan.Placement
 import io.github.tomuius.cartilou.data.scan.ReferenceHashes
 import io.github.tomuius.cartilou.data.scan.ScanBasket
-import io.github.tomuius.cartilou.data.supabase.Account
-import io.github.tomuius.cartilou.data.supabase.DisplayableException
-import io.github.tomuius.cartilou.data.supabase.OwnedCards
-import io.github.tomuius.cartilou.data.supabase.proposedVersion
 import io.github.tomuius.cartilou.data.tcgdex.CardBrief
 import io.github.tomuius.cartilou.data.tcgdex.CardSetBrief
 import io.github.tomuius.cartilou.data.tcgdex.Tcgdex
@@ -108,7 +104,7 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
 
     private var matcher: CardMatcher? = null
 
-    /** La version mise au panier pour chaque nouvelle carte. */
+    /** La version donnée à chaque nouvelle carte scannée. */
     var selected by mutableStateOf(QuickVersion.Proposed)
 
     /**
@@ -130,20 +126,21 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
     var choice by mutableStateOf<List<CardBrief>?>(null)
         private set
 
-    /** Augmente à chaque carte mise au panier : l'écran fait alors vibrer le téléphone. */
+    /** Augmente à chaque carte ajoutée aux cartes scannées : l'écran fait alors vibrer le téléphone. */
     var addedCount by mutableIntStateOf(0)
         private set
 
-    var validating by mutableStateOf(false)
+    /**
+     * Vrai si l'encadré de test est affiché (décision du 28/11/2026, option A :
+     * masqué par défaut, interrupteur « Tests » dans la barre du haut). Reste
+     * réglé tant que l'appli est ouverte.
+     */
+    var showTests by mutableStateOf(false)
         private set
 
-    /** Message de la validation du panier, ou null. */
-    var message by mutableStateOf<String?>(null)
-        private set
-
-    /** Vrai si la validation a échoué faute de connexion au compte. */
-    var needsSignIn by mutableStateOf(false)
-        private set
+    fun toggleTests() {
+        showTests = !showTests
+    }
 
     /**
      * Le contenu de l'encadré de test (décision du 27/11/2026, option B) : le
@@ -183,7 +180,7 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
     /** Lu à l'image précédente, en attente d'une deuxième lecture identique. */
     private var pendingKey: String? = null
 
-    /** Cartes déjà traitées (mise au panier ou choix proposé) et encore devant l'objectif. */
+    /** Cartes déjà traitées (ajout aux cartes scannées ou choix proposé) et encore devant l'objectif. */
     private var inViewIds: Set<String> = emptySet()
     private var framesWithoutInView = 0
 
@@ -279,7 +276,7 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
      * Compare les photos de la carte (voir SHOTS_BEFORE et SHOTS_MAX) aux images
      * TCGdex de [cards], téléchargées si besoin, en essayant pour chaque photo
      * plusieurs découpages (voir Placement). Une carte nettement plus
-     * ressemblante que les autres va au panier ; sinon, on propose de choisir.
+     * ressemblante que les autres va aux cartes scannées ; sinon, on propose de choisir.
      */
     private fun compareImages(cards: List<CardBrief>, clue: String) {
         comparing = true
@@ -371,8 +368,7 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
     private fun putInBasket(card: CardBrief) {
         ScanBasket.add(card, selected.version)
         addedCount++
-        status = "Ajoutée au panier : ${card.name} (n° ${card.localId})"
-        message = null
+        status = "Ajoutée aux cartes scannées : ${card.name} (n° ${card.localId})"
     }
 
     /** Choix fait parmi plusieurs cartes. */
@@ -422,52 +418,4 @@ class ScannerViewModel(private val appContext: Context) : ViewModel() {
 
     /** Le nom de l'extension d'une carte (pour départager des cartes), si connu. */
     fun setNameOf(card: CardBrief): String? = matcher?.setNameOf(card)
-
-    /**
-     * Ajoute tout le panier à la collection, ligne par ligne. Chaque ligne
-     * enregistrée quitte le panier ; au premier échec, on s'arrête et le reste
-     * attend dans le panier.
-     */
-    fun validate() {
-        if (validating) return
-        needsSignIn = false
-        if (Account.currentUserId() == null) {
-            message = "Connectez-vous dans l'onglet Compte pour ajouter le panier à votre collection."
-            needsSignIn = true
-            return
-        }
-        viewModelScope.launch {
-            validating = true
-            message = null
-            var added = 0
-            var failed = false
-            for (item in ScanBasket.items.value.reversed()) {
-                try {
-                    // La fiche donne l'extension et, pour « Proposée », la version.
-                    val card = try {
-                        Tcgdex.card(item.cardId)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        throw DisplayableException(
-                            "Fiche de « ${item.name} » introuvable chez TCGdex. Vérifiez la connexion à Internet.", e,
-                        )
-                    }
-                    val version = item.cardVersion ?: proposedVersion(card.variants)
-                    OwnedCards.addCopies(card.id, card.set.id, version, item.quantity)
-                    ScanBasket.remove(item)
-                    added += item.quantity
-                } catch (e: DisplayableException) {
-                    message = e.message
-                    failed = true
-                    break
-                }
-            }
-            if (!failed) {
-                message = if (added == 1) "1 exemplaire ajouté à votre collection."
-                else "$added exemplaires ajoutés à votre collection."
-            }
-            validating = false
-        }
-    }
 }
